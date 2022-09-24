@@ -15,10 +15,17 @@ import (
 )
 
 var (
-	dropBoxAccessToken = os.Getenv("DROPBOX_TOKEN")
+	dropBoxAccessToken string
 	DefaultPath        = "/Apps/tapiriik"
 	client             = &http.Client{}
 )
+
+func init() {
+	dropBoxAccessToken = os.Getenv("DROPBOX_TOKEN")
+	if dropBoxAccessToken == "" {
+		log.Fatalf("error: env var DROPBOX_TOKEN is empty. Please set a value and restart.\n")
+	}
+}
 
 func ListFolderContents(s string) (*models.DropBoxListFolderResponse, error) {
 	if s == "" {

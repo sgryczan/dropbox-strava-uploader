@@ -32,19 +32,19 @@ import (
 const port = 8321 // port of local demo server
 
 var (
-	authenticator *strava.OAuthAuthenticator
-	currentAuth   *strava.AuthorizationResponse
-	Debug bool
+	authenticator  *strava.OAuthAuthenticator
+	currentAuth    *strava.AuthorizationResponse
+	Debug          bool
+	callBackDomain string
+	requiredVars   = []string{
+		"STRAVA_CLIENT_ID",
+		"STRAVA_CLIENT_SECRET",
+		"CALLBACK_DOMAIN",
+	}
 )
 
 func init() {
-	cid, err := strconv.Atoi(os.Getenv("STRAVA_CLIENT_ID"))
-	if err != nil {
-		log.Fatalf("%s", err)
-	}
-	strava.ClientId = cid
-	strava.ClientSecret = os.Getenv("STRAVA_CLIENT_SECRET")
-
+	readVars()
 	readTokenFile()
 }
 
@@ -54,6 +54,26 @@ type RefreshTokenResponse struct {
 	RefreshToken string `json:"refresh_token"`
 	ExpiresAt    int    `json:"expires_at"`
 	ExpiresIn    int    `json:"expires_in"`
+}
+
+func readVars() {
+	cid, _ := strconv.Atoi(os.Getenv("STRAVA_CLIENT_ID"))
+	strava.ClientId = cid
+	strava.ClientSecret = os.Getenv("STRAVA_CLIENT_SECRET")
+
+	callBackDomain = os.Getenv("CALLBACK_DOMAIN")
+
+	var missingRequiredVar bool
+	for _, s := range requiredVars {
+		v := os.Getenv(s)
+		if v == "" {
+			log.Printf("[strava] error: environment variable %s is empty. Please set a value and restart the program.\n", s)
+			missingRequiredVar = true
+		}
+	}
+	if missingRequiredVar {
+		os.Exit(1)
+	}
 }
 
 func AuthTokenExists() bool {
@@ -74,7 +94,7 @@ func StartAuthServer() {
 	}
 
 	authenticator = &strava.OAuthAuthenticator{
-		CallbackURL:            fmt.Sprintf("http://oauth.czan.io:%d/exchange_token", port),
+		CallbackURL:            fmt.Sprintf("http://%s:%d/exchange_token", callBackDomain, port),
 		RequestClientGenerator: nil,
 	}
 
@@ -88,7 +108,7 @@ func StartAuthServer() {
 	http.HandleFunc(path, authenticator.HandlerFunc(oAuthSuccess, oAuthFailure))
 
 	// start the server
-	fmt.Printf("Visit http://oauth.czan.io:%d/ to get a token\n", port)
+	fmt.Printf("Visit http://%s:%d/ to get a token\n", callBackDomain, port)
 	http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 
 }
@@ -179,7 +199,7 @@ func tokenNeedsRefresh(token *strava.AuthorizationResponse) bool {
 		validFor := int64(currentAuth.ExpiresAt) - refreshTime
 		log.Printf("token is valid for %d seconds\n", validFor)
 	}
-	
+
 	return false
 }
 
@@ -233,4 +253,8 @@ func refreshAuthToken() error {
 	log.Println(string(b))
 
 	return nil
+}
+
+func CallBackURL() string {
+	return fmt.Sprintf("%s:%d", callBackDomain, port)
 }

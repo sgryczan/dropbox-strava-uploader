@@ -40,7 +40,7 @@ func CollectAndUpload(id string) {
 		var notifiedUser bool
 		for !strava.AuthTokenExists() {
 			if !notifiedUser {
-				log.Printf("no strava auth token found. Please navigate to oauth.czan.io:8321 and get one.\n")
+				log.Printf("no strava auth token found. Please navigate to %s and get one.\n", strava.CallBackURL())
 				notifiedUser = true
 			}
 
