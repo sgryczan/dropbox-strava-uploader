@@ -233,6 +233,14 @@ func refreshAuthToken() error {
 		return err
 	}
 
+	if resp.StatusCode > 300 {
+		b, err := httputil.DumpRequest(req, true)
+		if err != nil {
+			return err
+		}
+		log.Println(fmt.Sprintf("request: %s\n", b))
+	}
+
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
@@ -245,12 +253,16 @@ func refreshAuthToken() error {
 	}
 
 	currentAuth = tokenResponse
+	err = writeTokenFile(currentAuth)
+	if err != nil {
+		return err
+	}
 
 	b, err = httputil.DumpResponse(resp, true)
 	if err != nil {
 		return err
 	}
-	log.Println(string(b))
+	log.Println(fmt.Sprintf("response: %s\n", b))
 
 	return nil
 }
