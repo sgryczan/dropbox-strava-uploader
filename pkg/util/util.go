@@ -27,12 +27,14 @@ func CollectAndUpload(id string) {
 	for i, entry := range listResponse.Entries {
 		log.Printf("processing entry %d of %d: %s", i+1, len(listResponse.Entries), entry.PathDisplay)
 
-		// Save the dropbox token every 10 iterations
-		if i%10 == 0 {
-			err = dropbox.WriteTokenFile()
-			if err != nil {
-				log.Print(err.Error())
-				os.Exit(1)
+		if len(listResponse.Entries) > 10 {
+			// Save the dropbox token every 10 iterations
+			if i%10 == 0 {
+				err = dropbox.WriteTokenFile()
+				if err != nil {
+					log.Print(err.Error())
+					os.Exit(1)
+				}
 			}
 		}
 
@@ -72,5 +74,11 @@ func CollectAndUpload(id string) {
 			os.Exit(1)
 		}
 	}
+	err = dropbox.WriteTokenFile()
+	if err != nil {
+		log.Print(err.Error())
+		os.Exit(1)
+	}
+
 	log.Printf("Successfully processed all files.\n")
 }
