@@ -30,6 +30,7 @@ import (
 )
 
 const port = 8321 // port of local demo server
+const tokenFile = "/app/strava_token.json"
 
 var (
 	authenticator  *strava.OAuthAuthenticator
@@ -116,7 +117,7 @@ func StartAuthServer() {
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	// you should make this a template in your real application
 	fmt.Fprintf(w, `<a href="%s">`, authenticator.AuthorizationURL("state1", strava.Permissions.ReadWriteActivity, true))
-	fmt.Fprint(w, `<img src="http://strava.github.io/api/images/ConnectWithStrava.png" />`)
+	fmt.Fprint(w, `<img src="https://dgalywyr863hv.cloudfront.net/pictures/athletes/78830691/19008976/9/large.jpg" />`)
 	fmt.Fprint(w, `</a>`)
 }
 
@@ -152,7 +153,7 @@ func oAuthFailure(err error, w http.ResponseWriter, r *http.Request) {
 
 func readTokenFile() error {
 	auth := &strava.AuthorizationResponse{}
-	data, err := os.ReadFile("/app/token.json")
+	data, err := os.ReadFile(tokenFile)
 	if err != nil {
 		return err
 	}
@@ -171,7 +172,7 @@ func writeTokenFile(auth *strava.AuthorizationResponse) error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile("/app/token.json", b, 0644)
+	err = os.WriteFile(tokenFile, b, 0644)
 	if err != nil {
 		return err
 	}
@@ -227,18 +228,11 @@ func refreshAuthToken() error {
 		URL:    url,
 		Body:   io.NopCloser(strings.NewReader(string(body))),
 	}
+	log.Printf("body: %s\n", body)
 
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
-	}
-
-	if resp.StatusCode > 300 {
-		b, err := httputil.DumpRequest(req, true)
-		if err != nil {
-			return err
-		}
-		log.Println(fmt.Sprintf("request: %s\n", b))
 	}
 
 	b, err := ioutil.ReadAll(resp.Body)
