@@ -2,13 +2,11 @@ package dropbox
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/sgryczan/strava-uploader/pkg/models"
@@ -20,13 +18,6 @@ var (
 	client             = &http.Client{}
 )
 
-func init() {
-	dropBoxAccessToken = os.Getenv("DROPBOX_TOKEN")
-	if dropBoxAccessToken == "" {
-		log.Fatalf("error: env var DROPBOX_TOKEN is empty. Please set a value and restart.\n")
-	}
-}
-
 func ListFolderContents(s string) (*models.DropBoxListFolderResponse, error) {
 	if s == "" {
 		s = DefaultPath
@@ -34,6 +25,7 @@ func ListFolderContents(s string) (*models.DropBoxListFolderResponse, error) {
 
 	url, err := url.Parse("https://api.dropboxapi.com/2/files/list_folder")
 	if err != nil {
+		log.Printf("[dropbox] [ListFolderContents] - error parsing url: %s\n", err)
 		return nil, err
 	}
 
@@ -43,6 +35,7 @@ func ListFolderContents(s string) (*models.DropBoxListFolderResponse, error) {
 
 	body, err := json.Marshal(data)
 	if err != nil {
+		log.Printf("[dropbox] [ListFolderContents] - error marshalling data: %s\n", err)
 		return nil, err
 	}
 
@@ -50,21 +43,33 @@ func ListFolderContents(s string) (*models.DropBoxListFolderResponse, error) {
 		Method: "POST",
 		URL:    url,
 		Header: map[string][]string{
-			"Authorization": {fmt.Sprintf("Bearer %s", dropBoxAccessToken)},
-			"Content-Type":  {"application/json"},
+			"Content-Type": {"application/json"},
 		},
 		Body: io.NopCloser(strings.NewReader(string(body))),
 	}
 
 	resp, err := client.Do(req)
-	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		log.Printf("[dropbox] [ListFolderContents] - error performing request: %s\n", err)
 		return nil, err
 	}
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("[dropbox] [ListFolderContents] - error reading response body: %s\n", err)
+		return nil, err
+	}
+
+	/* rb, err := httputil.DumpRequest(req, true)
+	log.Printf("[dropbox] [ListFolderContents] - request %s\n", rb)
+
+	rb, err = httputil.DumpResponse(resp, true)
+	log.Printf("[dropbox] [ListFolderContents] - response %s\n", rb) */
 
 	listResponse := &models.DropBoxListFolderResponse{}
 	err = json.Unmarshal(b, listResponse)
 	if err != nil {
+		log.Printf("[dropbox] [ListFolderContents] - error unmarshalling response body: %s\n", err)
+		log.Printf("[dropbox] [ListFolderContents] - response body: %s\n", b)
 		return nil, err
 	}
 	return listResponse, nil
@@ -89,7 +94,6 @@ func DownloadFile(p string) ([]byte, error) {
 		Method: "POST",
 		URL:    url,
 		Header: map[string][]string{
-			"Authorization":   {fmt.Sprintf("Bearer %s", dropBoxAccessToken)},
 			"DropBox-API-Arg": {string(body)},
 		},
 	}
@@ -124,8 +128,7 @@ func MoveFile(fromPath, toPath string) error {
 		Method: "POST",
 		URL:    url,
 		Header: map[string][]string{
-			"Authorization": {fmt.Sprintf("Bearer %s", dropBoxAccessToken)},
-			"Content-Type":  {"application/json"},
+			"Content-Type": {"application/json"},
 		},
 		Body: io.NopCloser(strings.NewReader(string(body))),
 	}
@@ -138,4 +141,13 @@ func MoveFile(fromPath, toPath string) error {
 	log.Print(string(b))
 
 	return nil
+}
+
+func AuthIsGood() bool {
+	t, _ := readTokenFile()
+	if t == nil {
+		return false
+	}
+
+	return true
 }

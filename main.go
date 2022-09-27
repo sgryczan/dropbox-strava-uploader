@@ -3,6 +3,7 @@ package main
 import (
 	"time"
 
+	"github.com/sgryczan/strava-uploader/pkg/dropbox"
 	"github.com/sgryczan/strava-uploader/pkg/strava"
 	"github.com/sgryczan/strava-uploader/pkg/util"
 )
@@ -14,9 +15,15 @@ var (
 )
 
 func main() {
-	// Start the auth server in case we need to do the oauth2 
+	// Start the auth server in case we need to do the oauth2
 	// song and dance to get a token
 	go strava.StartAuthServer()
+
+	// start dropbox auth server
+	go dropbox.StartAuthServer()
+	for !dropbox.AuthIsGood() {
+		time.Sleep(time.Second * 1)
+	}
 
 	// Run collection
 	util.StartPeriodicCollection(stravaClientID, time.Hour*1)

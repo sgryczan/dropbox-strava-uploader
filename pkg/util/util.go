@@ -20,12 +20,22 @@ func StartPeriodicCollection(id string, t time.Duration) {
 func CollectAndUpload(id string) {
 	listResponse, err := dropbox.ListFolderContents(dropbox.DefaultPath)
 	if err != nil {
-		log.Fatalf("err: %s", err)
+		log.Fatalf("failed to list folder contents: %s", err)
 	}
 
 	log.Printf("Found %d entries.", len(listResponse.Entries))
 	for i, entry := range listResponse.Entries {
 		log.Printf("processing entry %d of %d: %s", i+1, len(listResponse.Entries), entry.PathDisplay)
+
+		// Save the dropbox token every 10 iterations
+		if i%10 == 0 {
+			err = dropbox.WriteTokenFile()
+			if err != nil {
+				log.Print(err.Error())
+				os.Exit(1)
+			}
+		}
+
 		if entry.Type == "folder" {
 			continue
 		}
