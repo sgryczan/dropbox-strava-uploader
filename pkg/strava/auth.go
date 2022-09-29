@@ -13,6 +13,7 @@ package strava
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -228,7 +229,7 @@ func refreshAuthToken() error {
 		URL:    url,
 		Body:   io.NopCloser(strings.NewReader(string(body))),
 	}
-	log.Printf("body: %s\n", body)
+	log.Printf("strava token refresh request body: %s\n", body)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -240,10 +241,20 @@ func refreshAuthToken() error {
 		return err
 	}
 
+	if resp.StatusCode > 300 {
+		rbody, _ := httputil.DumpResponse(resp, true)
+		log.Println(fmt.Sprintf("response body: %s\n", rbody))
+		return fmt.Errorf("err: failed to renew token\n")
+	}
+
 	tokenResponse := &strava.AuthorizationResponse{}
 	err = json.Unmarshal(b, tokenResponse)
 	if err != nil {
 		return err
+	}
+
+	if tokenResponse.AccessToken == "" || tokenResponse.RefreshToken == "" {
+		return errors.New("error: strava access/refresh token is empty")
 	}
 
 	currentAuth = tokenResponse
@@ -251,12 +262,6 @@ func refreshAuthToken() error {
 	if err != nil {
 		return err
 	}
-
-	b, err = httputil.DumpResponse(resp, true)
-	if err != nil {
-		return err
-	}
-	log.Println(fmt.Sprintf("response: %s\n", b))
 
 	return nil
 }
